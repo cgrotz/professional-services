@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package ip
 
 import (
 	"fmt"
@@ -20,11 +20,12 @@ import (
 	"net"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/professional-services/ipam-autopilot/model"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRangeCreationWithEmptyExisting(t *testing.T) {
-	subnet, subnet_zeros, err := findNextSubnet(20, "10.0.0.0/8", []Range{})
+	subnet, subnet_zeros, err := FindNextSubnet(20, "10.0.0.0/8", []model.Range{})
 
 	assert.Nil(t, err)
 	_, network, _ := net.ParseCIDR("10.0.0.0/20")
@@ -33,12 +34,12 @@ func TestRangeCreationWithEmptyExisting(t *testing.T) {
 }
 
 func TestRangeCreationWithExisting1(t *testing.T) {
-	existingRanges := []Range{
-		Range{
+	existingRanges := []model.Range{
+		model.Range{
 			Cidr: "10.0.0.0/20",
 		},
 	}
-	subnet, subnet_ones, err := findNextSubnet(22, "10.0.0.0/8", existingRanges)
+	subnet, subnet_ones, err := FindNextSubnet(22, "10.0.0.0/8", existingRanges)
 
 	log.Printf("new subnet lease %s/%d", subnet.IP.String(), subnet_ones)
 	assert.Nil(t, err)
@@ -48,15 +49,15 @@ func TestRangeCreationWithExisting1(t *testing.T) {
 }
 
 func TestRangeCreationWithExisting2(t *testing.T) {
-	existingRanges := []Range{
-		Range{
+	existingRanges := []model.Range{
+		model.Range{
 			Cidr: "10.0.0.0/20",
 		},
-		Range{
+		model.Range{
 			Cidr: "10.0.16.0/22",
 		},
 	}
-	subnet, subnet_ones, err := findNextSubnet(22, "10.0.0.0/8", existingRanges)
+	subnet, subnet_ones, err := FindNextSubnet(22, "10.0.0.0/8", existingRanges)
 
 	log.Printf("new subnet lease %s/%d", subnet.IP.String(), subnet_ones)
 	assert.Nil(t, err)
@@ -66,15 +67,15 @@ func TestRangeCreationWithExisting2(t *testing.T) {
 }
 
 func TestRangeCreationWithExisting3(t *testing.T) {
-	existingRanges := []Range{
-		Range{
+	existingRanges := []model.Range{
+		model.Range{
 			Cidr: "10.0.0.0/22",
 		},
-		Range{
+		model.Range{
 			Cidr: "10.0.4.0/22",
 		},
 	}
-	subnet, subnet_ones, err := findNextSubnet(24, "10.0.0.0/8", existingRanges)
+	subnet, subnet_ones, err := FindNextSubnet(24, "10.0.0.0/8", existingRanges)
 
 	log.Printf("new subnet lease %s/%d", subnet.IP.String(), subnet_ones)
 	assert.Nil(t, err)
@@ -84,12 +85,12 @@ func TestRangeCreationWithExisting3(t *testing.T) {
 }
 
 func TestRangeCreationWithExisting4(t *testing.T) {
-	existingRanges := []Range{
-		Range{
+	existingRanges := []model.Range{
+		model.Range{
 			Cidr: "10.128.0.0/20",
 		},
 	}
-	_, _, err := findNextSubnet(22, "10.128.0.0/20", existingRanges)
+	_, _, err := FindNextSubnet(22, "10.128.0.0/20", existingRanges)
 
 	assert.NotNil(t, err)
 	assert.Equal(t, err, fmt.Errorf("no_address_range_available_in_parent"))

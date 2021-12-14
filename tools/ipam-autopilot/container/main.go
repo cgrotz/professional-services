@@ -15,62 +15,42 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 
-	"github.com/go-sql-driver/mysql"
+	"github.com/GoogleCloudPlatform/professional-services/ipam-autopilot/api"
+	"github.com/GoogleCloudPlatform/professional-services/ipam-autopilot/data_access"
+	"github.com/GoogleCloudPlatform/professional-services/ipam-autopilot/provider"
 	"github.com/gofiber/fiber/v2"
 )
-
-var db *sql.DB
 
 func main() {
 	var err error
 
-	cfg := mysql.Config{
-		User:                 os.Getenv("DATABASE_USER"),
-		Passwd:               os.Getenv("DATABASE_PASSWORD"),
-		Net:                  os.Getenv("DATABASE_NET"),
-		Addr:                 os.Getenv("DATABASE_HOST"),
-		DBName:               os.Getenv("DATABASE_NAME"),
-		MultiStatements:      true,
-		AllowNativePasswords: true,
-	}
-	// Get a database handle.
-	db, err = sql.Open("mysql", cfg.FormatDSN())
-	db.SetMaxOpenConns(100)
-	db.SetMaxIdleConns(5)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-	err = MigrateDatabase(os.Getenv("DATABASE_NAME"), db)
-	if err != nil {
-		log.Fatal("Unable to initalize database")
-	}
+	data_access.InitDatabase()
+	defer data_access.Close()
 
 	app := fiber.New()
 	// No static assets right now app.Static("/", "./public")
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("IPAM Autopilot up and running 👋!")
 	})
-	app.Get("/.well-known/terraform.json", GetTerraformDiscovery)
-	app.Get("/terraform/providers/v1/ipam-autopilot/ipam/versions", GetTerraformVersions)
-	app.Get("/terraform/providers/v1/ipam-autopilot/ipam/:version/download/:os/:arch", GetTerraformVersionDownload)
+	app.Get("/.well-known/terraform.json", provider.GetTerraformDiscovery)
+	app.Get("/terraform/providers/v1/ipam-autopilot/ipam/versions", provider.GetTerraformVersions)
+	app.Get("/terraform/providers/v1/ipam-autopilot/ipam/:version/download/:os/:arch", provider.GetTerraformVersionDownload)
 
-	app.Post("/ranges", CreateNewRange)
-	app.Get("/ranges", GetRanges)
-	app.Get("/ranges/:id", GetRange)
-	app.Delete("/ranges/:id", DeleteRange)
+	app.Post("/ranges", api.CreateNewRange)
+	app.Get("/ranges", api.GetRanges)
+	app.Get("/ranges/:id", api.GetRange)
+	app.Delete("/ranges/:id", api.DeleteRange)
 
-	app.Get("/domains", GetRoutingDomains)
-	app.Get("/domains/:id", GetRoutingDomain)
-	app.Put("/domains/:id", UpdateRoutingDomain)
-	app.Post("/domains", CreateRoutingDomain)
-	app.Delete("/domains/:id", DeleteRoutingDomain)
+	app.Get("/domains", api.GetRoutingDomains)
+	app.Get("/domains/:id", api.GetRoutingDomain)
+	app.Put("/domains/:id", api.UpdateRoutingDomain)
+	app.Post("/domains", api.CreateRoutingDomain)
+	app.Delete("/domains/:id", api.DeleteRoutingDomain)
 
 	var port int64
 	if os.Getenv("PORT") != "" {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cai
 
 import (
 	"context"
@@ -26,15 +26,15 @@ import (
 )
 
 type CaiSecondaryRange struct {
-	name string
-	cidr string
+	Name string
+	Cidr string
 }
 type CaiRange struct {
-	name            string
-	id              string
-	network         string
-	cidr            string
-	secondaryRanges []CaiSecondaryRange
+	Name            string
+	Id              string
+	Network         string
+	Cidr            string
+	SecondaryRanges []CaiSecondaryRange
 }
 
 func GetRangesForNetwork(parent string, networks []string) ([]CaiRange, error) {
@@ -81,16 +81,16 @@ func GetRangesForNetwork(parent string, networks []string) ([]CaiRange, error) {
 					}
 				}
 				secondaryRanges = append(secondaryRanges, CaiSecondaryRange{
-					name: rangeName,
-					cidr: ipCidrRange,
+					Name: rangeName,
+					Cidr: ipCidrRange,
 				})
 			}
 			ranges = append(ranges, CaiRange{
-				id:              asset.Resource.Data.Fields["id"].GetStringValue(),
-				name:            asset.Name,
-				network:         asset.Resource.Data.Fields["network"].GetStringValue(),
-				cidr:            asset.Resource.Data.Fields["ipCidrRange"].GetStringValue(),
-				secondaryRanges: secondaryRanges,
+				Id:              asset.Resource.Data.Fields["id"].GetStringValue(),
+				Name:            asset.Name,
+				Network:         asset.Resource.Data.Fields["network"].GetStringValue(),
+				Cidr:            asset.Resource.Data.Fields["ipCidrRange"].GetStringValue(),
+				SecondaryRanges: secondaryRanges,
 			})
 		} else {
 			log.Printf("Ignoring network %s", asset.Resource.Data.Fields["network"].GetStringValue())

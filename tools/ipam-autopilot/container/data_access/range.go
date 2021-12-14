@@ -12,37 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package data_access
 
 import (
 	"database/sql"
-	"fmt"
-	"log"
-	"net"
-	"strings"
 
-	"github.com/apparentlymart/go-cidr/cidr"
+	"github.com/GoogleCloudPlatform/professional-services/ipam-autopilot/model"
 	"github.com/jackc/pgtype"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-type RoutingDomain struct {
-	Id   int    `db:"routing_domain_id"`
-	Name string `db:"name"`
-	Vpcs string `db:"vpcs"` // associated VPCs that should be tracked for subnet creation
-}
-
-type Range struct {
-	Subnet_id         int    `db:"subnet_id"`
-	Parent_id         int    `db:"parent_id"`
-	Routing_domain_id int    `db:"routing_domain_id"`
-	Name              string `db:"name"`
-	Cidr              string `db:"cidr"`
-}
-
-func GetRangesFromDB() ([]Range, error) {
-	var ranges []Range
+func GetRangesFromDB() ([]model.Range, error) {
+	var ranges []model.Range
 
 	rows, err := db.Query("SELECT subnet_id, parent_id, routing_domain_id, name, cidr FROM subnets")
 	if err != nil {
@@ -63,7 +45,7 @@ func GetRangesFromDB() ([]Range, error) {
 			tmp.AssignTo(&parent_id)
 		}
 
-		ranges = append(ranges, Range{
+		ranges = append(ranges, model.Range{
 			Subnet_id:         subnet_id,
 			Parent_id:         parent_id,
 			Routing_domain_id: routing_domain_id,
@@ -74,8 +56,8 @@ func GetRangesFromDB() ([]Range, error) {
 	return ranges, nil
 }
 
-func GetRangesForParentFromDB(tx *sql.Tx, parent_id int64) ([]Range, error) {
-	var ranges []Range
+func GetRangesForParentFromDB(tx *sql.Tx, parent_id int64) ([]model.Range, error) {
+	var ranges []model.Range
 	rows, err := tx.Query("SELECT subnet_id, parent_id, routing_domain_id, name, cidr FROM subnets WHERE parent_id = ? FOR UPDATE", parent_id)
 	if err != nil {
 		return nil, err
@@ -95,7 +77,7 @@ func GetRangesForParentFromDB(tx *sql.Tx, parent_id int64) ([]Range, error) {
 			tmp.AssignTo(&parent_id)
 		}
 
-		ranges = append(ranges, Range{
+		ranges = append(ranges, model.Range{
 			Subnet_id:         subnet_id,
 			Parent_id:         parent_id,
 			Routing_domain_id: routing_domain_id,
@@ -106,7 +88,7 @@ func GetRangesForParentFromDB(tx *sql.Tx, parent_id int64) ([]Range, error) {
 	return ranges, nil
 }
 
-func GetRangeFromDB(id int64) (*Range, error) {
+func GetRangeFromDB(id int64) (*model.Range, error) {
 	var subnet_id int
 	var routing_domain_id int
 	tmp := pgtype.Int4{}
@@ -123,7 +105,7 @@ func GetRangeFromDB(id int64) (*Range, error) {
 		tmp.AssignTo(&parent_id)
 	}
 
-	return &Range{
+	return &model.Range{
 		Subnet_id:         subnet_id,
 		Parent_id:         parent_id,
 		Routing_domain_id: routing_domain_id,
@@ -132,7 +114,7 @@ func GetRangeFromDB(id int64) (*Range, error) {
 	}, nil
 }
 
-func GetRangeFromDBWithTx(tx *sql.Tx, id int64) (*Range, error) {
+func GetRangeFromDBWithTx(tx *sql.Tx, id int64) (*model.Range, error) {
 	var subnet_id int
 	var routing_domain_id int
 	tmp := pgtype.Int4{}
@@ -149,7 +131,7 @@ func GetRangeFromDBWithTx(tx *sql.Tx, id int64) (*Range, error) {
 		tmp.AssignTo(&parent_id)
 	}
 
-	return &Range{
+	return &model.Range{
 		Subnet_id:         subnet_id,
 		Parent_id:         parent_id,
 		Routing_domain_id: routing_domain_id,
@@ -158,7 +140,7 @@ func GetRangeFromDBWithTx(tx *sql.Tx, id int64) (*Range, error) {
 	}, nil
 }
 
-func getRangeByCidrAndRoutingDomain(tx *sql.Tx, request_cidr string, routing_domain_id int) (*Range, error) {
+func GetRangeByCidrAndRoutingDomain(tx *sql.Tx, request_cidr string, routing_domain_id int) (*model.Range, error) {
 	var subnet_id int
 	tmp := pgtype.Int4{}
 	var name string
@@ -174,7 +156,7 @@ func getRangeByCidrAndRoutingDomain(tx *sql.Tx, request_cidr string, routing_dom
 		tmp.AssignTo(&parent_id)
 	}
 
-	return &Range{
+	return &model.Range{
 		Subnet_id:         subnet_id,
 		Parent_id:         parent_id,
 		Routing_domain_id: routing_domain_id,
@@ -183,7 +165,7 @@ func getRangeByCidrAndRoutingDomain(tx *sql.Tx, request_cidr string, routing_dom
 	}, nil
 }
 
-func GetRangeByCidrFromDB(tx *sql.Tx, routing_domain_id int, cidr_request string) (*Range, error) {
+func GetRangeByCidrFromDB(tx *sql.Tx, routing_domain_id int, cidr_request string) (*model.Range, error) {
 	var subnet_id int
 	tmp := pgtype.Int4{}
 	var name string
@@ -205,7 +187,7 @@ func GetRangeByCidrFromDB(tx *sql.Tx, routing_domain_id int, cidr_request string
 		tmp.AssignTo(&parent_id)
 	}
 
-	return &Range{
+	return &model.Range{
 		Subnet_id:         subnet_id,
 		Parent_id:         parent_id,
 		Routing_domain_id: routing_domain_id,
@@ -216,15 +198,6 @@ func GetRangeByCidrFromDB(tx *sql.Tx, routing_domain_id int, cidr_request string
 
 func DeleteRangeFromDb(id int64) error {
 	_, err := db.Query("DELETE FROM subnets WHERE subnet_id = ?", id)
-
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func DeleteRoutingDomainFromDB(id int64) error {
-	_, err := db.Query("DELETE FROM routing_domains WHERE routing_domain_id = ?", id)
 
 	if err != nil {
 		return err
@@ -254,135 +227,4 @@ func CreateRangeInDb(tx *sql.Tx, parent_id int64, routing_domain_id int, name st
 		}
 		return subnet_id, nil
 	}
-}
-
-func createNewSubnetLease(prevCidr string, range_size int, subnetIndex int) (*net.IPNet, int, error) {
-	_, network, err := net.ParseCIDR(prevCidr)
-	if err != nil {
-		return nil, -1, fmt.Errorf("unable to calculate subnet %v", err)
-	}
-	ones, size := network.Mask.Size()
-	subnet, err := cidr.Subnet(network, int(range_size)-ones, subnetIndex)
-	if err != nil {
-		return nil, -1, fmt.Errorf("unable to calculate subnet %v", err)
-	}
-	subnet.Mask = net.CIDRMask(range_size, size)
-	return subnet, range_size, nil
-}
-
-func verifyNoOverlap(parentCidr string, subnetRanges []Range, newSubnet *net.IPNet) error {
-	_, parentNetwork, err := net.ParseCIDR(parentCidr)
-	if err != nil {
-		return fmt.Errorf("can't parse CIDR %v", err)
-	}
-	log.Printf("Checking Overlap\nparentCidr:\t%s", parentCidr)
-	var subnets []*net.IPNet
-	subnets = append(subnets, newSubnet)
-	log.Printf("newSubnet:\t%s/%d", newSubnet.IP.String(), netMask(newSubnet.Mask))
-	for i := 0; i < len(subnetRanges); i++ {
-		subnetRange := subnetRanges[i]
-		netAddr, subnetCidr, err := net.ParseCIDR(subnetRange.Cidr)
-		if err != nil {
-			return fmt.Errorf("can't parse CIDR %v", err)
-		}
-		if parentNetwork.Contains(netAddr) {
-			subnets = append(subnets, subnetCidr)
-		}
-	}
-
-	return cidr.VerifyNoOverlap(subnets, parentNetwork)
-}
-
-func netMask(mask net.IPMask) int {
-	ones, _ := mask.Size()
-	return ones
-}
-
-func GetDefaultRoutingDomainFromDB(tx *sql.Tx) (*RoutingDomain, error) {
-	var routing_domain_id int
-	var name string
-	var vpcs sql.NullString
-
-	err := tx.QueryRow("SELECT routing_domain_id, name, vpcs FROM routing_domains LIMIT 1 FOR UPDATE").Scan(&routing_domain_id, &name, &vpcs)
-	if err != nil {
-		return nil, err
-	}
-
-	return &RoutingDomain{
-		Id:   routing_domain_id,
-		Name: name,
-		Vpcs: vpcs.String,
-	}, nil
-}
-
-func GetRoutingDomainsFromDB() ([]RoutingDomain, error) {
-	var domains []RoutingDomain
-	rows, err := db.Query("SELECT routing_domain_id, name, vpcs FROM routing_domains")
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var routing_domain_id int
-		var name string
-		var vpcs sql.NullString
-		err := rows.Scan(&routing_domain_id, &name, &vpcs)
-		if err != nil {
-			return nil, err
-		}
-		domains = append(domains, RoutingDomain{
-			Id:   routing_domain_id,
-			Name: name,
-			Vpcs: vpcs.String,
-		})
-	}
-	return domains, nil
-}
-
-func GetRoutingDomainFromDB(id int64) (*RoutingDomain, error) {
-	var routing_domain_id int
-	var name string
-	var vpcs sql.NullString
-
-	err := db.QueryRow("SELECT routing_domain_id, name, vpcs FROM routing_domains WHERE routing_domain_id = ?", id).Scan(&routing_domain_id, &name, &vpcs)
-	if err != nil {
-		return nil, err
-	}
-
-	return &RoutingDomain{
-		Id:   routing_domain_id,
-		Name: name,
-		Vpcs: vpcs.String,
-	}, nil
-}
-
-func UpdateRoutingDomainOnDb(id int64, name JSONString, vpcs JSONStringArray) error {
-	if name.Set && vpcs.Set {
-		_, err := db.Query("UPDATE routing_domains SET name = ?, vpcs = ? WHERE routing_domain_id = ?", id, name.Value, strings.Join(vpcs.Value, ","))
-		if err != nil {
-			return err
-		}
-	} else if vpcs.Set {
-		_, err := db.Query("UPDATE routing_domains SET vpcs = ? WHERE routing_domain_id = ?", id, strings.Join(vpcs.Value, ","))
-		if err != nil {
-			return err
-		}
-	} else if name.Set {
-		_, err := db.Query("UPDATE routing_domains SET name = ? WHERE routing_domain_id = ?", id, name.Value)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func CreateRoutingDomainOnDb(name string, vpcs []string) (int64, error) {
-	res, err := db.Exec("INSERT INTO routing_domains (name, vpcs) VALUES (?,?);", name, strings.Join(vpcs, ","))
-	if err != nil {
-		return -1, err
-	}
-	domain_id, err := res.LastInsertId()
-	if err != nil {
-		return -1, err
-	}
-	return domain_id, nil
 }
