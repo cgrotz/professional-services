@@ -37,6 +37,9 @@ func main() {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("IPAM Autopilot up and running 👋!")
 	})
+	app.Post("/admission/mutating", api.MutatingWebhook)
+	app.Post("/admission/validating", api.ValidatingWebhook)
+
 	app.Get("/.well-known/terraform.json", provider.GetTerraformDiscovery)
 	app.Get("/terraform/providers/v1/ipam-autopilot/ipam/versions", provider.GetTerraformVersions)
 	app.Get("/terraform/providers/v1/ipam-autopilot/ipam/:version/download/:os/:arch", provider.GetTerraformVersionDownload)

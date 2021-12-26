@@ -25,7 +25,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-var db *sql.DB
+var Db *sql.DB
 
 func InitDatabase() {
 	var err error
@@ -39,23 +39,23 @@ func InitDatabase() {
 		AllowNativePasswords: true,
 	}
 	// Get a database handle.
-	db, err = sql.Open("mysql", cfg.FormatDSN())
-	db.SetMaxOpenConns(100)
-	db.SetMaxIdleConns(5)
+	Db, err = sql.Open("mysql", cfg.FormatDSN())
+	Db.SetMaxOpenConns(100)
+	Db.SetMaxIdleConns(5)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = MigrateDatabase(os.Getenv("DATABASE_NAME"), db)
+	err = MigrateDatabase(os.Getenv("DATABASE_NAME"), Db)
 	if err != nil {
 		log.Fatal("Unable to initalize database")
 	}
 }
 
 func Close() {
-	db.Close()
+	Db.Close()
 }
 
 func GetTransaction() (*sql.Tx, error) {
 	ctx := context.Background()
-	return db.BeginTx(ctx, nil)
+	return Db.BeginTx(ctx, nil)
 }

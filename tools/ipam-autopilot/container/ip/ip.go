@@ -23,15 +23,13 @@ import (
 	"github.com/apparentlymart/go-cidr/cidr"
 )
 
-func VerifyNoOverlap(parentCidr string, subnetRanges []model.Range, newSubnet *net.IPNet) error {
+func VerifyNoOverlapWithParent(parentCidr string, subnetRanges []model.Range, newSubnet *net.IPNet) error {
 	_, parentNetwork, err := net.ParseCIDR(parentCidr)
 	if err != nil {
 		return fmt.Errorf("can't parse CIDR %v", err)
 	}
-	log.Printf("Checking Overlap\nparentCidr:\t%s", parentCidr)
 	var subnets []*net.IPNet
 	subnets = append(subnets, newSubnet)
-	log.Printf("newSubnet:\t%s/%d", newSubnet.IP.String(), netMask(newSubnet.Mask))
 	for i := 0; i < len(subnetRanges); i++ {
 		subnetRange := subnetRanges[i]
 		netAddr, subnetCidr, err := net.ParseCIDR(subnetRange.Cidr)
@@ -44,6 +42,24 @@ func VerifyNoOverlap(parentCidr string, subnetRanges []model.Range, newSubnet *n
 	}
 
 	return cidr.VerifyNoOverlap(subnets, parentNetwork)
+}
+
+func VerifyNoOverlap(subnetRanges []model.Range, requestRange *net.IPNet) error {
+	first, last := cidr.AddressRange(requestRange)
+	for i := 0; i < len(subnetRanges); i++ {
+		subnetRange := subnetRanges[i]
+		_, subnetCidr, err := net.ParseCIDR(subnetRange.Cidr)
+		if err != nil {
+			return fmt.Errorf("can't parse CIDR %v", err)
+		}
+		firstFromSubnet, lastFromSubnet := cidr.AddressRange(subnetCidr)
+		if subnetCidr.Contains(first) || subnetCidr.Contains(last) || requestRange.Contains(firstFromSubnet) || requestRange.Contains(lastFromSubnet) {
+			ones, _ := subnetCidr.Mask.Size()
+			return fmt.Errorf("subnet collission with %s/%d", subnetCidr.IP.String(), ones)
+		}
+
+	}
+	return nil
 }
 
 func FindNextSubnet(range_size int, sourceRange string, existingRanges []model.Range) (*net.IPNet, int, error) {
@@ -60,7 +76,7 @@ func FindNextSubnet(range_size int, sourceRange string, existingRanges []model.R
 
 	var lastSubnet = false
 	for {
-		err = VerifyNoOverlap(sourceRange, existingRanges, subnet)
+		err = VerifyNoOverlapWithParent(sourceRange, existingRanges, subnet)
 		if err == nil {
 			break
 		} else if !lastSubnet {

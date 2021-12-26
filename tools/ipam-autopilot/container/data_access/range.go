@@ -26,7 +26,7 @@ import (
 func GetRangesFromDB() ([]model.Range, error) {
 	var ranges []model.Range
 
-	rows, err := db.Query("SELECT subnet_id, parent_id, routing_domain_id, name, cidr FROM subnets")
+	rows, err := Db.Query("SELECT subnet_id, parent_id, routing_domain_id, name, cidr FROM subnets")
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +88,38 @@ func GetRangesForParentFromDB(tx *sql.Tx, parent_id int64) ([]model.Range, error
 	return ranges, nil
 }
 
+func GetRangesForRoutingDomainFromDB(tx *sql.Tx, routingDomainId int) ([]model.Range, error) {
+	var ranges []model.Range
+	rows, err := tx.Query("SELECT subnet_id, parent_id, routing_domain_id, name, cidr FROM subnets WHERE routing_domain_id = ? FOR UPDATE", routingDomainId)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var subnet_id int
+		var routing_domain_id int
+		tmp := pgtype.Int4{}
+		var name string
+		var cidr string
+		err := rows.Scan(&subnet_id, &tmp, &routing_domain_id, &name, &cidr)
+		if err != nil {
+			return nil, err
+		}
+		parent_id := -1
+		if tmp.Status == pgtype.Present {
+			tmp.AssignTo(&parent_id)
+		}
+
+		ranges = append(ranges, model.Range{
+			Subnet_id:         subnet_id,
+			Parent_id:         parent_id,
+			Routing_domain_id: routing_domain_id,
+			Name:              name,
+			Cidr:              cidr,
+		})
+	}
+	return ranges, nil
+}
+
 func GetRangeFromDB(id int64) (*model.Range, error) {
 	var subnet_id int
 	var routing_domain_id int
@@ -95,7 +127,7 @@ func GetRangeFromDB(id int64) (*model.Range, error) {
 	var name string
 	var cidr string
 
-	err := db.QueryRow("SELECT subnet_id, parent_id, routing_domain_id, name, cidr FROM subnets WHERE subnet_id = ?", id).Scan(&subnet_id, &tmp, &routing_domain_id, &name, &cidr)
+	err := Db.QueryRow("SELECT subnet_id, parent_id, routing_domain_id, name, cidr FROM subnets WHERE subnet_id = ?", id).Scan(&subnet_id, &tmp, &routing_domain_id, &name, &cidr)
 
 	if err != nil {
 		return nil, err
@@ -197,7 +229,7 @@ func GetRangeByCidrFromDB(tx *sql.Tx, routing_domain_id int, cidr_request string
 }
 
 func DeleteRangeFromDb(id int64) error {
-	_, err := db.Query("DELETE FROM subnets WHERE subnet_id = ?", id)
+	_, err := Db.Query("DELETE FROM subnets WHERE subnet_id = ?", id)
 
 	if err != nil {
 		return err

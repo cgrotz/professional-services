@@ -40,7 +40,7 @@ func GetDefaultRoutingDomainFromDB(tx *sql.Tx) (*model.RoutingDomain, error) {
 
 func GetRoutingDomainsFromDB() ([]model.RoutingDomain, error) {
 	var domains []model.RoutingDomain
-	rows, err := db.Query("SELECT routing_domain_id, name, vpcs FROM routing_domains")
+	rows, err := Db.Query("SELECT routing_domain_id, name, vpcs FROM routing_domains")
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func GetRoutingDomainFromDB(id int64) (*model.RoutingDomain, error) {
 	var name string
 	var vpcs sql.NullString
 
-	err := db.QueryRow("SELECT routing_domain_id, name, vpcs FROM routing_domains WHERE routing_domain_id = ?", id).Scan(&routing_domain_id, &name, &vpcs)
+	err := Db.QueryRow("SELECT routing_domain_id, name, vpcs FROM routing_domains WHERE routing_domain_id = ?", id).Scan(&routing_domain_id, &name, &vpcs)
 	if err != nil {
 		return nil, err
 	}
@@ -80,17 +80,17 @@ func GetRoutingDomainFromDB(id int64) (*model.RoutingDomain, error) {
 
 func UpdateRoutingDomainOnDb(id int64, name model.JSONString, vpcs model.JSONStringArray) error {
 	if name.Set && vpcs.Set {
-		_, err := db.Query("UPDATE routing_domains SET name = ?, vpcs = ? WHERE routing_domain_id = ?", id, name.Value, strings.Join(vpcs.Value, ","))
+		_, err := Db.Query("UPDATE routing_domains SET name = ?, vpcs = ? WHERE routing_domain_id = ?", id, name.Value, strings.Join(vpcs.Value, ","))
 		if err != nil {
 			return err
 		}
 	} else if vpcs.Set {
-		_, err := db.Query("UPDATE routing_domains SET vpcs = ? WHERE routing_domain_id = ?", id, strings.Join(vpcs.Value, ","))
+		_, err := Db.Query("UPDATE routing_domains SET vpcs = ? WHERE routing_domain_id = ?", id, strings.Join(vpcs.Value, ","))
 		if err != nil {
 			return err
 		}
 	} else if name.Set {
-		_, err := db.Query("UPDATE routing_domains SET name = ? WHERE routing_domain_id = ?", id, name.Value)
+		_, err := Db.Query("UPDATE routing_domains SET name = ? WHERE routing_domain_id = ?", id, name.Value)
 		if err != nil {
 			return err
 		}
@@ -99,7 +99,7 @@ func UpdateRoutingDomainOnDb(id int64, name model.JSONString, vpcs model.JSONStr
 }
 
 func CreateRoutingDomainOnDb(name string, vpcs []string) (int64, error) {
-	res, err := db.Exec("INSERT INTO routing_domains (name, vpcs) VALUES (?,?);", name, strings.Join(vpcs, ","))
+	res, err := Db.Exec("INSERT INTO routing_domains (name, vpcs) VALUES (?,?);", name, strings.Join(vpcs, ","))
 	if err != nil {
 		return -1, err
 	}
@@ -111,7 +111,7 @@ func CreateRoutingDomainOnDb(name string, vpcs []string) (int64, error) {
 }
 
 func DeleteRoutingDomainFromDB(id int64) error {
-	_, err := db.Query("DELETE FROM routing_domains WHERE routing_domain_id = ?", id)
+	_, err := Db.Query("DELETE FROM routing_domains WHERE routing_domain_id = ?", id)
 
 	if err != nil {
 		return err
