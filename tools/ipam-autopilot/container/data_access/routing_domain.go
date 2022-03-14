@@ -61,6 +61,23 @@ func GetRoutingDomainsFromDB() ([]model.RoutingDomain, error) {
 	return domains, nil
 }
 
+func FindRoutingDomainFromDBWithVpcName(tx *sql.Tx, vpc string) (*model.RoutingDomain, error) {
+	var routing_domain_id int
+	var name string
+	var vpcs sql.NullString
+
+	err := Db.QueryRow("SELECT routing_domain_id, name, vpcs FROM routing_domains WHERE vpcs = $?$", vpc).Scan(&routing_domain_id, &name, &vpcs)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.RoutingDomain{
+		Id:   routing_domain_id,
+		Name: name,
+		Vpcs: vpcs.String,
+	}, nil
+}
+
 func GetRoutingDomainFromDB(id int64) (*model.RoutingDomain, error) {
 	var routing_domain_id int
 	var name string

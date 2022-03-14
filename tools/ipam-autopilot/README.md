@@ -20,7 +20,7 @@ The following GCP services are used as part of the deployment, and might cause c
 
 A self-contained registry for discovery of the provider is part of the backend and the deployment. It uses GCS with signed URL for providing the provider binaries. Please be aware, this approach towards Terraform provider registry can be brittle.
 
-## Deploying
+## Deploying on CloudRun
 In order to use the provider later from terraform we need to provide the providers binaries in a way that Terraform can resolve them.
 For this we need to first build the provider binaries. The Terraform deployment instructions will use the binaries to bundle the provider for discovery by the Terraform clients. For this you will need to have PGP set up so that the checksum file that accompanies the binaries can be signed.
 
@@ -51,7 +51,7 @@ credentials "<cloud run hostname>" {
 Or as a condensed command
 `echo "credentials \"<cloud run hostname>\" { \n token = \"$(gcloud auth print-identity-token)\" \n }" > ~/.terraformrc`
 
-## An example configuration
+## An example configuration with Terraform
 Below is a Terraform example for using IPAM Autopilot
 ```
 terraform {
@@ -76,3 +76,23 @@ output "range" {
   value = ipam_ip_range.pod-ranges.cidr
 }
 ```
+
+## Using as Admission Webhook
+IPAM Autopilot also supports to be used as Admission Webhook together with [Kubernetes Config Connector](https://cloud.google.com/config-connector/docs/overview). You can use it to validate `ComputeSubnetwork` against a routing domain to avoid collision, or use it mutating to generate the ipCidrRange from IPAM Autopilot.
+
+TODO example webhook configuration
+
+If you want to run IPAM Autopilot on CloudRun and use IAM for AuthN and AuthZ, you might want to consider deploying a pod to GKE to proxy the calls to CloudRun and add an Authorization header from an attached Workload Identity.
+
+
+## Deploying to Google Kubernetes Engine
+Alternatively you can deploy IPAM Autopilot to GKE
+
+TODO example Deployment Descriptor
+
+This way you can just use IPAM Autopilot as a service in your AdmissionWebhook, but will need to configure TLS. 
+
+TODO example webhook configuration with service
+
+## Using the Subnet Custom Resource
+IPAM Autopilot also brings  

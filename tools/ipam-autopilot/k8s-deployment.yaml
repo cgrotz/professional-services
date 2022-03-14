@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipam-autopilot-deployment
+  labels:
+    app: ipam-autopilot
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ipam-autopilot
+  template:
+    metadata:
+      labels:
+        app: ipam-autopilot
+    spec:
+      containers:
+      - name: ipam-autopilot
+        image: pam-autopilot:1
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipam-autopilot-service
+spec:
+  selector:
+    app: ipam-autopilot
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+    - protocol: TCP
+      port: 443
+      targetPort: 8080

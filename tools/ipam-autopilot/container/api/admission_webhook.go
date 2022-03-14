@@ -225,7 +225,13 @@ func handleCreation(c *fiber.Ctx, request admissionv1.AdmissionReview) error {
 		name = metadata["name"].(string)
 	}
 	annotations := metadata["annotations"].(map[string]interface{})
-	// projectId doesn't contain the project projectId := annotations["cnrm.cloud.google.com/project-id"]
+
+	// projectId doesn't necessarily contain the project, it might just contain the namespace name https://cloud.google.com/config-connector/docs/how-to/organizing-resources/project-scoped-resources
+	projectId := ""
+	if annotations["cnrm.cloud.google.com/project-id"] != nil {
+		projectId = annotations["cnrm.cloud.google.com/project-id"].(string)
+	}
+
 	routingDomainId := ""
 	if annotations["ipam.cloud.google.com/routing-domain-id"] != nil {
 		routingDomainId = annotations["ipam.cloud.google.com/routing-domain-id"].(string)
@@ -249,17 +255,25 @@ func handleCreation(c *fiber.Ctx, request admissionv1.AdmissionReview) error {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		routingDomain, err := getRoutingDomain(tx, routingDomainId)
-		if err != nil {
-			err = tx.Commit()
+		var routingDomain *model.RoutingDomain
+		if routingDomainId != "" {
+			routingDomain, err = getRoutingDomain(tx, routingDomainId)
 			if err != nil {
-				log.Fatal(err)
+				err = tx.Commit()
+				if err != nil {
+					log.Fatal(err)
+				}
+				return c.Status(400).JSON(&fiber.Map{
+					"success": false,
+					"message": fmt.Sprintf("%v", err),
+				})
 			}
-			return c.Status(400).JSON(&fiber.Map{
-				"success": false,
-				"message": fmt.Sprintf("%v", err),
-			})
+		} else {
+			spec := metadata["spec"].(map[string]interface{})
+			networkRef := spec["networkRef"].(map[string]interface{})
+			networkName := networkRef["name"].(string)
+			// TODO can the routing ID be infered
+			routingDomain, err = findRoutingDomainByVpc(tx, fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/global/networks/%s", projectId, networkName))
 		}
 
 		if *(request.Request.DryRun) {
@@ -394,6 +408,32 @@ func handleDeletion(c *fiber.Ctx, request admissionv1.AdmissionReview) error {
 }
 
 func getRoutingDomain(tx *sql.Tx, routingDomainId string) (*model.RoutingDomain, error) {
+	var err error
+	var routingDomain *model.RoutingDomain
+	if routingDomainId == "" {
+		routingDomain, err = data_access.GetDefaultRoutingDomainFromDB(tx)
+		if err != nil {
+			log.Printf("Error %v", err)
+			tx.Rollback()
+			return nil, fmt.Errorf("Couldn't retrieve default routing domain")
+		}
+	} else {
+		domain_id, err := strconv.ParseInt(routingDomainId, 10, 64)
+		if err != nil {
+			return nil, err
+
+		}
+		routingDomain, err = data_access.GetRoutingDomainFromDB(domain_id)
+		if err != nil {
+			log.Printf("Error %v", err)
+			tx.Rollback()
+			return nil, fmt.Errorf("Couldn't retrieve default routing domain")
+		}
+	}
+	return routingDomain, nil
+}
+
+func findRoutingDomainByVpc(tx *sql.Tx, vpcName string) (*model.RoutingDomain, error) {
 	var err error
 	var routingDomain *model.RoutingDomain
 	if routingDomainId == "" {

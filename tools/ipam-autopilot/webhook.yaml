@@ -1,0 +1,41 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: "subnetwebhook"
+webhooks:
+- name: "ipam-pdk3svnohq-ew.a.run.app"
+  rules:
+  - apiGroups:   ["compute.cnrm.cloud.google.com"]
+    apiVersions: ["v1beta1"]
+    operations:  ["CREATE"]
+    resources:   ["computesubnetworks"]
+    scope:       "Namespaced"
+  clientConfig:
+    url:  https://899a-2a02-8070-e2aa-1b00-7d40-b0f7-4d51-e367.ngrok.io/admission/validating
+    #service:
+    #  namespace: "default"
+    #  name: "admission-service"
+  admissionReviewVersions: ["v1", "v1beta1"]
+  sideEffects: None
+  timeoutSeconds: 5
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: "subnetwebhook-mutating"
+webhooks:
+- name: "ipam-pdk3svnohq-ew.a.run.app"
+  rules:
+  - apiGroups:   ["compute.cnrm.cloud.google.com"]
+    apiVersions: ["v1beta1"]
+    operations:  ["CREATE", "DELETE"]
+    resources:   ["computesubnetworks"]
+    scope:       "Namespaced"
+  clientConfig:
+    url:  https://899a-2a02-8070-e2aa-1b00-7d40-b0f7-4d51-e367.ngrok.io/admission/mutating
+    #service:
+    #  namespace: "default"
+    #  name: "admission-service"
+  admissionReviewVersions: ["v1", "v1beta1"]
+  sideEffects: None
+  timeoutSeconds: 30

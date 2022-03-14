@@ -1,0 +1,7 @@
+# kubectl annotate namespace default cnrm.cloud.google.com/project-id=ipam-autopilot-showcase
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    cnrm.cloud.google.com/project-id: ipam-autopilot-showcase
+  name: default

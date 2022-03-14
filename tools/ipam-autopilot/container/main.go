@@ -37,6 +37,7 @@ func main() {
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.SendString("IPAM Autopilot up and running 👋!")
 	})
+	// K8S WebHooks
 	app.Post("/admission/mutating", api.MutatingWebhook)
 	app.Post("/admission/validating", api.ValidatingWebhook)
 
